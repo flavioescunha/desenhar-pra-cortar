@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SVG Cartesiano - Due Studio - Prof. Flávio</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #f5f5f5;
+      --border: #d8d8d8;
+      --text: #222;
+      --muted: #666;
+      --red: #d32f2f;
+      --blue: #1976d2;
+      --soft-red: #ffcccc;
+      --soft-blue: #ccccff;
+      --accent: #009688;
+      --yellow: #ffe082;
+      --green: #c8e6c9;
+      --shadow: 0 2px 10px rgba(0,0,0,.08);
+      --radius: 14px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    .app {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 320px;
+      min-width: 320px;
+      max-width: 320px;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      padding: 12px;
+      overflow-y: auto;
+      box-shadow: var(--shadow);
+    }
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      min-width: 0;
+    }
+
+    .card {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px;
+      margin-bottom: 10px;
+      box-shadow: var(--shadow);
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: .3px;
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+
+    .row.tight { gap: 4px; }
+
+    .grid-camadas {
+      display: grid;
+      grid-template-columns: 48px 1fr 60px 72px;
+      gap: 4px 6px;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    label.small, .small {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    input[type="text"], input[type="number"] {
+      padding: 8px 10px;
+      border: 1px solid #cfcfcf;
+      border-radius: 10px;
+      outline: none;
+      font-size: 14px;
+      min-width: 0;
+    }
+
+    input[type="text"]:focus, input[type="number"]:focus {
+      border-color: #90caf9;
+      box-shadow: 0 0 0 3px rgba(33,150,243,.15);
+    }
+
+    .w-100 { width: 100%; }
+    .w-70 { width: 70px; }
+    .w-80 { width: 80px; }
+    .w-90 { width: 90px; }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: transform .05s ease, opacity .15s ease;
+    }
+
+    button:active { transform: translateY(1px); }
+    button:hover { opacity: .95; }
+
+    .btn-primary { background: #e3f2fd; }
+    .btn-warn { background: #fff3e0; }
+    .btn-break { background: var(--yellow); }
+    .btn-export { background: var(--green); }
+    .btn-teeth { background: #b2dfdb; }
+    .btn-teeth.active { background: #4db6ac; color: white; }
+    .btn-gray { background: #eceff1; }
+    .btn-red { background: #ffcdd2; }
+    .btn-blue { background: #dbeafe; }
+
+    .layer-name.red { color: var(--red); font-weight: 700; }
+    .layer-name.blue { color: var(--blue); font-weight: 700; }
+
+    .points-list {
+      width: 100%;
+      min-height: 180px;
+      max-height: 220px;
+      overflow: auto;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: white;
+      padding: 6px;
+      font-family: "Courier New", monospace;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .points-item {
+      padding: 2px 4px;
+      border-radius: 6px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .points-item:hover {
+      background: #f7f7f7;
+    }
+
+    .canvas-wrap {
+      flex: 1;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+
+    #svgCanvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: white;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .statusbar {
+      margin-top: 8px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: var(--muted);
+      box-shadow: var(--shadow);
+    }
+
+    .help-box {
+      background: #fff9c4;
+      border: 1px solid #e6dd8d;
+      border-radius: 12px;
+      padding: 8px;
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre-line;
+    }
+
+    .credits {
+      font-size: 12px;
+      color: #555;
+      text-align: center;
+      font-style: italic;
+      line-height: 1.4;
+    }
+
+    .muted { color: var(--muted); }
+
+    .toolbar-top {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 13px;
+      box-shadow: var(--shadow);
+    }
+
+    .mono { font-family: "Courier New", monospace; }
+
+    @media (max-width: 980px) {
+      .app {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+        height: auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+      .main {
+        min-height: 50vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="card">
+        <div class="section-title">1. Camadas e parâmetros</div>
+
+        <div class="grid-camadas">
+          <div class="small">Ativa</div>
+          <div class="small">Camada</div>
+          <div class="small" style="text-align:center;">Pot(%)</div>
+          <div class="small" style="text-align:center;">Vel(mm/s)</div>
+
+          <div style="text-align:center;">
+            <input type="radio" name="camada" id="rbCorte" value="corte" checked />
+          </div>
+          <div><label for="rbCorte" class="layer-name red">Corte</label></div>
+          <div><input id="potCorte" class="w-100" type="text" value="100" /></div>
+          <div><input id="velCorte" class="w-100" type="text" value="20" /></div>
+
+          <div style="text-align:center;">
+            <input type="radio" name="camada" id="rbContorno" value="contorno" />
+          </div>
+          <div><label for="rbContorno" class="layer-name blue">Dobra</label></div>
+          <div><input id="potContorno" class="w-100" type="text" value="30" /></div>
+          <div><input id="velContorno" class="w-100" type="text" value="50" /></div>
+        </div>
+
+        <div class="row" style="margin-top: 10px;">
+          <label class="small">
+            <input type="checkbox" id="chkOutraCamada" checked />
+            Ver camada inativa (translúcida)
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">2. Coordenadas (mm)</div>
+        <div class="row">
+          <label for="entX" class="small">X:</label>
+          <input id="entX" class="w-80" type="number" step="any" />
+          <label for="entY" class="small">Y:</label>
+          <input id="entY" class="w-80" type="number" step="any" />
+        </div>
+        <div class="row">
+          <button id="btnAdd" class="btn-primary w-100">Adicionar ponto (Enter)</button>
+        </div>
+        <div class="row">
+          <button id="btnUndo" class="btn-warn w-100">Remover último (Backspace)</button>
+        </div>
+        <div class="row">
+          <button id="btnBreak" class="btn-break w-100">✂️ Cortar linha / Nova figura (Espaço)</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">3. Pontos da camada</div>
+        <div id="pointsList" class="points-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">4. Arquivos</div>
+        <div class="row">
+          <button id="btnSaveProject" class="btn-gray" style="flex:1;">Salvar .flavio</button>
+          <button id="btnLoadProject" class="btn-gray" style="flex:1;">Importar .flavio</button>
+          <input id="fileInput" type="file" accept=".flavio,.json" style="display:none;" />
+        </div>
+        <div class="row">
+          <button id="btnExportSVG" class="btn-export w-100">Exportar SVG (para laser)</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">5. Encaixes (MDF)</div>
+        <div class="row">
+          <label for="entMdf" class="small">Espessura (mm):</label>
+          <input id="entMdf" class="w-90" type="number" step="any" value="3.0" />
+        </div>
+        <div class="row">
+          <button id="btnTeeth" class="btn-teeth w-100">🦷 Gerar dentes em aresta</button>
+        </div>
+
+        <div class="help-box">
+💡 DICA DE ENCAIXES:
+O dente começa ONDE CLICAR.
+Continue clicando na aresta:
+1. Macho (Para Dentro)
+2. Fêmea (Para Dentro)
+3. Macho (Para Fora)
+4. Fêmea (Para Fora)
+5. Remover Dentes
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="credits">
+          Prof. Flávio E. S. da Cunha<br />
+          27/03/2026<br />
+          flavioescunha@gmail.com
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="toolbar-top">
+        <div class="pill">A3: <span class="mono">420 × 297 mm</span></div>
+        <div class="pill">Camada ativa: <span id="pillCamada" class="mono">corte</span></div>
+        <div class="pill">Modo dentes: <span id="pillDentes" class="mono">desligado</span></div>
+      </div>
+
+      <div class="canvas-wrap">
+        <svg id="svgCanvas" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+
+      <div id="statusbar" class="statusbar">
+        Pronto.
+      </div>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const SVG_NS = "http://www.w3.org/2000/svg";
+
+      const state = {
+        LARGURA_A3: 420,
+        ALTURA_A3: 297,
+        ESCALA: 2.5,
+        camadaAtual: "corte",
+        verOutraCamada: true,
+        modoDentes: false,
+        dados: {
+          corte: { pontos: [], pot: "100", vel: "20" },
+          contorno: { pontos: [], pot: "30", vel: "50" },
+          arestas_com_dentes: {}
+        }
+      };
+
+      const el = {
+        svg: document.getElementById("svgCanvas"),
+        entX: document.getElementById("entX"),
+        entY: document.getElementById("entY"),
+        potCorte: document.getElementById("potCorte"),
+        velCorte: document.getElementById("velCorte"),
+        potContorno: document.getElementById("potContorno"),
+        velContorno: document.getElementById("velContorno"),
+        chkOutraCamada: document.getElementById("chkOutraCamada"),
+        rbCorte: document.getElementById("rbCorte"),
+        rbContorno: document.getElementById("rbContorno"),
+        pointsList: document.getElementById("pointsList"),
+        entMdf: document.getElementById("entMdf"),
+        btnAdd: document.getElementById("btnAdd"),
+        btnUndo: document.getElementById("btnUndo"),
+        btnBreak: document.getElementById("btnBreak"),
+        btnSaveProject: document.getElementById("btnSaveProject"),
+        btnLoadProject: document.getElementById("btnLoadProject"),
+        btnExportSVG: document.getElementById("btnExportSVG"),
+        btnTeeth: document.getElementById("btnTeeth"),
+        fileInput: document.getElementById("fileInput"),
+        statusbar: document.getElementById("statusbar"),
+        pillCamada: document.getElementById("pillCamada"),
+        pillDentes: document.getElementById("pillDentes"),
+      };
+
+      function setStatus(msg) {
+        el.statusbar.textContent = msg;
+      }
+
+      function mmToPx(mm) {
+        return mm * state.ESCALA;
+      }
+
+      function pxToMm(px) {
+        return px / state.ESCALA;
+      }
+
+      function clamp(n, min, max) {
+        return Math.max(min, Math.min(max, n));
+      }
+
+      function round2(n) {
+        return Math.round(n * 100) / 100;
+      }
+
+      function letterLabel(index) {
+        // A, B, C... Z, AA, AB...
+        let n = index + 1;
+        let s = "";
+        while (n > 0) {
+          let m = (n - 1) % 26;
+          s = String.fromCharCode(65 + m) + s;
+          n = Math.floor((n - 1) / 26);
+        }
+        return s;
+      }
+
+      function isTextFieldFocused() {
+        const a = document.activeElement;
+        if (!a) return false;
+        const tag = a.tagName?.toLowerCase();
+        return tag === "input" || tag === "textarea";
+      }
+
+      function updateScale() {
+        const rect = el.svg.getBoundingClientRect();
+        const w = Math.max(rect.width, 2);
+        const h = Math.max(rect.height, 2);
+        state.ESCALA = Math.min((w - 40) / state.LARGURA_A3, (h - 40) / state.ALTURA_A3);
+        if (!isFinite(state.ESCALA) || state.ESCALA <= 0) state.ESCALA = 2.5;
+      }
+
+      function clearSVG() {
+        while (el.svg.firstChild) el.svg.removeChild(el.svg.firstChild);
+      }
+
+      function svgEl(name, attrs = {}) {
+        const node = document.createElementNS(SVG_NS, name);
+        for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+        return node;
+      }
+
+      function drawLine(x1, y1, x2, y2, opts = {}) {
+        const line = svgEl("line", {
+          x1, y1, x2, y2,
+          stroke: opts.stroke ?? "black",
+          "stroke-width": opts.strokeWidth ?? 1,
+          "stroke-linecap": opts.strokeLinecap ?? "round",
+          "stroke-linejoin": opts.strokeLinejoin ?? "round",
+          opacity: opts.opacity ?? 1
+        });
+        if (opts.dasharray) line.setAttribute("stroke-dasharray", opts.dasharray);
+        if (opts.className) line.setAttribute("class", opts.className);
+        el.svg.appendChild(line);
+        return line;
+      }
+
+      function drawCircle(cx, cy, r, opts = {}) {
+        const c = svgEl("circle", {
+          cx, cy, r,
+          fill: opts.fill ?? "black",
+          stroke: opts.stroke ?? opts.fill ?? "black",
+          "stroke-width": opts.strokeWidth ?? 1,
+          opacity: opts.opacity ?? 1
+        });
+        el.svg.appendChild(c);
+        return c;
+      }
+
+      function drawText(x, y, text, opts = {}) {
+        const t = svgEl("text", {
+          x, y,
+          fill: opts.fill ?? "black",
+          "font-size": opts.fontSize ?? 10,
+          "font-family": opts.fontFamily ?? "Arial",
+          "font-weight": opts.fontWeight ?? "normal",
+          "text-anchor": opts.anchor ?? "start",
+          opacity: opts.opacity ?? 1
+        });
+        t.textContent = text;
+        el.svg.appendChild(t);
+        return t;
+      }
+
+      function renderGrid() {
+        const wPx = mmToPx(state.LARGURA_A3);
+        const hPx = mmToPx(state.ALTURA_A3);
+
+        // fundo A3
+        const bg = svgEl("rect", {
+          x: 0, y: 0,
+          width: wPx,
+          height: hPx,
+          fill: "white"
+        });
+        el.svg.appendChild(bg);
+
+        // grade
+        for (let x = 0; x <= state.LARGURA_A3; x += 10) {
+          const cor = (x % 50 !== 0) ? "#f0f0f0" : "#e0e0e0";
+          drawLine(mmToPx(x), 0, mmToPx(x), hPx, { stroke: cor, strokeWidth: 1 });
+        }
+
+        for (let y = 0; y <= state.ALTURA_A3; y += 10) {
+          const cor = (y % 50 !== 0) ? "#f0f0f0" : "#e0e0e0";
+          drawLine(0, mmToPx(y), wPx, mmToPx(y), { stroke: cor, strokeWidth: 1 });
+        }
+
+        // eixos
+        drawLine(1, 1, wPx, 1, { stroke: "black", strokeWidth: 2 });
+        drawLine(1, 1, 1, hPx, { stroke: "black", strokeWidth: 2 });
+
+        // setas simples
+        drawLine(wPx - 8, 1, wPx - 16, -4, { stroke: "black", strokeWidth: 2 });
+        drawLine(wPx - 8, 1, wPx - 16, 6, { stroke: "black", strokeWidth: 2 });
+        drawLine(1, hPx - 8, -4, hPx - 16, { stroke: "black", strokeWidth: 2 });
+        drawLine(1, hPx - 8, 6, hPx - 16, { stroke: "black", strokeWidth: 2 });
+
+        drawText(wPx - 30, 16, "Eixo X", { fontSize: 11, fontWeight: "bold" });
+        drawText(26, hPx - 10, "Eixo Y", { fontSize: 11, fontWeight: "bold" });
+
+        // marcas
+        for (let x = 0; x <= state.LARGURA_A3; x += 10) {
+          const px = mmToPx(x);
+          const tamanho = (x % 50 === 0) ? 8 : 4;
+          drawLine(px, 1, px, tamanho, { stroke: "black", strokeWidth: 1.5 });
+          if (x > 0 && x % 50 === 0) {
+            drawText(px, 16, String(x), { fontSize: 9, anchor: "middle" });
+          }
+        }
+
+        for (let y = 0; y <= state.ALTURA_A3; y += 10) {
+          const py = mmToPx(y);
+          const tamanho = (y % 50 === 0) ? 8 : 4;
+          drawLine(1, py, tamanho, py, { stroke: "black", strokeWidth: 1.5 });
+          if (y > 0 && y % 50 === 0) {
+            drawText(18, py + 3, String(y), { fontSize: 9 });
+          }
+        }
+
+        // contorno da folha
+        const border = svgEl("rect", {
+          x: 0, y: 0,
+          width: wPx,
+          height: hPx,
+          fill: "none",
+          stroke: "#bdbdbd",
+          "stroke-width": 1.2
+        });
+        el.svg.appendChild(border);
+      }
+
+      function edgeKey(p1, p2) {
+        const a = JSON.stringify([Number(p1[0]), Number(p1[1])]);
+        const b = JSON.stringify([Number(p2[0]), Number(p2[1])]);
+        return [a, b].sort().join("|");
+      }
+
+      function getToothInfo(p1, p2) {
+        const chave = edgeKey(p1, p2);
+        const mapa = state.dados.arestas_com_dentes || {};
+        if (!(chave in mapa)) {
+          return {
+            has: false,
+            espessura: 0,
+            complementar: false,
+            inverterDirecao: false,
+            inverterNormal: false
+          };
+        }
+
+        let info = mapa[chave];
+
+        // retrocompatibilidade
+        if (typeof info === "number") {
+          info = { p_start: [...p1], espessura: info, estado: 1 };
+        } else if (info && typeof info === "object" && !("estado" in info)) {
+          info.estado = info.complementar ? 2 : 1;
+        }
+
+        const pStart = Array.isArray(info.p_start) ? info.p_start : p1;
+        const inverterDirecao = !(Number(p1[0]) === Number(pStart[0]) && Number(p1[1]) === Number(pStart[1]));
+        const estado = Number(info.estado ?? 1);
+        const complementar = (estado === 2 || estado === 4);
+        const inverterNormal = (estado === 3 || estado === 4);
+
+        return {
+          has: true,
+          espessura: Number(info.espessura ?? 3),
+          complementar,
+          inverterDirecao,
+          inverterNormal
+        };
+      }
+
+      function calcularPontosDente(p1, p2, espessura, complementar = false, inverterDirecao = false, inverterNormal = false) {
+        const dx = p2[0] - p1[0];
+        const dy = p2[1] - p1[1];
+        const dist = Math.hypot(dx, dy);
+
+        if (dist < 10) return [p1, p2];
+
+        let ux = dx / dist;
+        let uy = dy / dist;
+        let nx = -uy;
+        let ny = ux;
+
+        if (inverterNormal) {
+          nx = -nx;
+          ny = -ny;
+        }
+
+        const comprimento = 10.0;
+        const chunksOriginais = [];
+        let curr = 0.0;
+        let i = 0;
+
+        while (curr < dist - 0.001) {
+          const step = Math.min(comprimento, dist - curr);
+          let isTooth = (i % 2 === 0);
+          if (complementar) isTooth = !isTooth;
+          chunksOriginais.push([curr, curr + step, isTooth]);
+          curr += step;
+          i++;
+        }
+
+        let chunks;
+        if (inverterDirecao) {
+          const inv = [];
+          for (const [start, end, isTooth] of chunksOriginais) {
+            const novoStart = dist - end;
+            const novoEnd = dist - start;
+            inv.push([novoStart, novoEnd, isTooth]);
+          }
+          inv.sort((a, b) => a[0] - b[0]);
+          chunks = inv;
+        } else {
+          chunks = chunksOriginais;
+        }
+
+        const novosPts = [[p1[0], p1[1]]];
+
+        for (let idx = 0; idx < chunks.length; idx++) {
+          const [startDist, endDist, isTooth] = chunks[idx];
+
+          const pStartEdge = [p1[0] + startDist * ux, p1[1] + startDist * uy];
+          const pEndEdge = [p1[0] + endDist * ux, p1[1] + endDist * uy];
+
+          const pStartIn = [pStartEdge[0] + espessura * nx, pStartEdge[1] + espessura * ny];
+          const pEndIn = [pEndEdge[0] + espessura * nx, pEndEdge[1] + espessura * ny];
+
+          if (isTooth) {
+            if (idx > 0) novosPts.push(pStartEdge);
+            novosPts.push(pEndEdge);
+          } else {
+            if (idx === 0) {
+              novosPts.push(pStartIn);
+            } else if (idx > 0) {
+              novosPts.push(pStartIn);
+            }
+
+            novosPts.push(pEndIn);
+
+            if (idx === chunks.length - 1) {
+              novosPts.push(pEndEdge);
+            }
+          }
+        }
+
+        const last = novosPts[novosPts.length - 1];
+        if (last[0] !== p2[0] || last[1] !== p2[1]) {
+          novosPts.push([p2[0], p2[1]]);
+        }
+
+        return novosPts;
+      }
+
+      function renderLayer(layer, translucido) {
+        const pts = state.dados[layer].pontos || [];
+        const cor = translucido
+          ? (layer === "corte" ? "#ffcccc" : "#ccccff")
+          : (layer === "corte" ? "red" : "blue");
+        const opacity = translucido ? 0.75 : 1;
+        let pontoInicial = null;
+
+        for (let i = 0; i < pts.length; i++) {
+          const p = pts[i];
+          if (p === "QUEBRA") {
+            pontoInicial = null;
+            continue;
+          }
+
+          const px = mmToPx(p[0]);
+          const py = mmToPx(p[1]);
+
+          drawCircle(px, py, 2.2, { fill: cor, stroke: cor, opacity });
+          drawText(px + 6, py - 6, letterLabel(i), {
+            fill: cor,
+            fontSize: 10,
+            opacity
+          });
+
+          if (pontoInicial === null) {
+            pontoInicial = p;
+          } else {
+            const pAnt = pts[i - 1];
+            if (pAnt !== "QUEBRA") {
+              const info = getToothInfo(pAnt, p);
+
+              if (info.has) {
+                const pontosDente = calcularPontosDente(
+                  pAnt,
+                  p,
+                  info.espessura,
+                  info.complementar,
+                  info.inverterDirecao,
+                  info.inverterNormal
+                );
+
+                for (let j = 0; j < pontosDente.length - 1; j++) {
+                  const a = pontosDente[j];
+                  const b = pontosDente[j + 1];
+                  drawLine(mmToPx(a[0]), mmToPx(a[1]), mmToPx(b[0]), mmToPx(b[1]), {
+                    stroke: cor,
+                    strokeWidth: translucido ? 1 : 2,
+                    opacity
+                  });
+                }
+              } else {
+                drawLine(mmToPx(pAnt[0]), mmToPx(pAnt[1]), px, py, {
+                  stroke: cor,
+                  strokeWidth: translucido ? 1 : 2,
+                  opacity
+                });
+              }
+            }
+
+            if (p[0] === pontoInicial[0] && p[1] === pontoInicial[1]) {
+              pontoInicial = null;
+            }
+          }
+        }
+      }
+
+      function updatePointsList() {
+        el.pointsList.innerHTML = "";
+        const pts = state.dados[state.camadaAtual].pontos || [];
+        pts.forEach((p, i) => {
+          const item = document.createElement("div");
+          item.className = "points-item";
+          item.textContent = `${letterLabel(i)}: ${Array.isArray(p) ? `(${p[0]}, ${p[1]})` : p}`;
+          el.pointsList.appendChild(item);
+        });
+      }
+
+      function render() {
+        updateScale();
+        clearSVG();
+
+        const viewWidth = mmToPx(state.LARGURA_A3);
+        const viewHeight = mmToPx(state.ALTURA_A3);
+        el.svg.setAttribute("viewBox", `0 0 ${viewWidth} ${viewHeight}`);
+
+        renderGrid();
+
+        const outra = state.camadaAtual === "corte" ? "contorno" : "corte";
+        if (state.verOutraCamada) renderLayer(outra, true);
+        renderLayer(state.camadaAtual, false);
+
+        el.pillCamada.textContent = state.camadaAtual;
+        el.pillDentes.textContent = state.modoDentes ? "ligado" : "desligado";
+        el.btnTeeth.classList.toggle("active", state.modoDentes);
+        el.btnTeeth.textContent = state.modoDentes
+          ? "Cancelar dentes (Esc)"
+          : "🦷 Gerar dentes em aresta";
+      }
+
+      function syncUIFromState() {
+        el.rbCorte.checked = state.camadaAtual === "corte";
+        el.rbContorno.checked = state.camadaAtual === "contorno";
+        el.chkOutraCamada.checked = state.verOutraCamada;
+
+        el.potCorte.value = state.dados.corte.pot ?? "100";
+        el.velCorte.value = state.dados.corte.vel ?? "20";
+        el.potContorno.value = state.dados.contorno.pot ?? "30";
+        el.velContorno.value = state.dados.contorno.vel ?? "50";
+      }
+
+      function syncStateFromUI() {
+        state.verOutraCamada = !!el.chkOutraCamada.checked;
+        state.dados.corte.pot = el.potCorte.value;
+        state.dados.corte.vel = el.velCorte.value;
+        state.dados.contorno.pot = el.potContorno.value;
+        state.dados.contorno.vel = el.velContorno.value;
+      }
+
+      function adicionarPonto() {
+        const x = parseFloat(el.entX.value);
+        const y = parseFloat(el.entY.value);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) {
+          setStatus("Digite coordenadas válidas em X e Y.");
+          return;
+        }
+
+        state.dados[state.camadaAtual].pontos.push([x, y]);
+        updatePointsList();
+        render();
+
+        el.entX.value = "";
+        el.entY.value = "";
+        el.entX.focus();
+        setStatus(`Ponto adicionado na camada ${state.camadaAtual}: (${x}, ${y})`);
+      }
+
+      function removerUltimo() {
+        const pts = state.dados[state.camadaAtual].pontos;
+        if (pts.length > 0) {
+          const removido = pts.pop();
+          updatePointsList();
+          render();
+          setStatus(`Último item removido da camada ${state.camadaAtual}: ${JSON.stringify(removido)}`);
+        }
+      }
+
+      function novaFigura() {
+        const pts = state.dados[state.camadaAtual].pontos;
+        if (pts.length > 0 && pts[pts.length - 1] !== "QUEBRA") {
+          pts.push("QUEBRA");
+          updatePointsList();
+          render();
+          setStatus(`Nova figura iniciada na camada ${state.camadaAtual}.`);
+        }
+      }
+
+      function alternarCamada(camada) {
+        state.camadaAtual = camada;
+        updatePointsList();
+        render();
+        setStatus(`Camada ativa: ${camada}`);
+      }
+
+      function cancelarModos() {
+        state.modoDentes = false;
+        render();
+        setStatus("Modo dentes cancelado.");
+      }
+
+      function toggleModoDentes() {
+        state.modoDentes = !state.modoDentes;
+        render();
+        setStatus(state.modoDentes
+          ? "Modo dentes ativado. Clique em uma aresta da camada Corte."
+          : "Modo dentes desativado.");
+      }
+
+      function distanciaPontoSegmento(px, py, x1, y1, x2, y2) {
+        const l2 = (x2 - x1) ** 2 + (y2 - y1) ** 2;
+        if (l2 === 0) return Math.hypot(px - x1, py - y1);
+
+        let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+        t = clamp(t, 0, 1);
+
+        const projX = x1 + t * (x2 - x1);
+        const projY = y1 + t * (y2 - y1);
+
+        return Math.hypot(px - projX, py - projY);
+      }
+
+      function obterArestaProxima(px, py) {
+        const pts = state.dados.corte.pontos;
+        if (!pts || pts.length < 2) return null;
+
+        const limitePixels = 10;
+        let melhorAresta = null;
+        let menorDist = Infinity;
+        let pontoInicial = null;
+
+        for (let i = 0; i < pts.length; i++) {
+          const p = pts[i];
+          if (p === "QUEBRA") {
+            pontoInicial = null;
+            continue;
+          }
+
+          if (pontoInicial === null) {
+            pontoInicial = p;
+          } else {
+            const pAnt = pts[i - 1];
+            if (pAnt !== "QUEBRA") {
+              const cx1 = mmToPx(pAnt[0]);
+              const cy1 = mmToPx(pAnt[1]);
+              const cx2 = mmToPx(p[0]);
+              const cy2 = mmToPx(p[1]);
+
+              const dist = distanciaPontoSegmento(px, py, cx1, cy1, cx2, cy2);
+              if (dist < limitePixels && dist < menorDist) {
+                menorDist = dist;
+                melhorAresta = [pAnt, p];
+              }
+            }
+
+            if (p[0] === pontoInicial[0] && p[1] === pontoInicial[1]) {
+              pontoInicial = null;
+            }
+          }
+        }
+
+        return melhorAresta;
+      }
+
+      function cycleTeethOnEdge(edge, clickXpx, clickYpx) {
+        if (!edge) return;
+        const [pA, pB] = edge;
+
+        const xMm = pxToMm(clickXpx);
+        const yMm = pxToMm(clickYpx);
+        const distA = Math.hypot(xMm - pA[0], yMm - pA[1]);
+        const distB = Math.hypot(xMm - pB[0], yMm - pB[1]);
+
+        const pStart = distA < distB ? [pA[0], pA[1]] : [pB[0], pB[1]];
+        const chave = edgeKey(pA, pB);
+        let espessura = parseFloat(el.entMdf.value);
+        if (!Number.isFinite(espessura)) espessura = 3.0;
+
+        if (!state.dados.arestas_com_dentes) state.dados.arestas_com_dentes = {};
+
+        if (!(chave in state.dados.arestas_com_dentes)) {
+          state.dados.arestas_com_dentes[chave] = {
+            p_start: pStart,
+            espessura,
+            estado: 1
+          };
+          setStatus("Estado 1 aplicado: Macho (para dentro).");
+        } else {
+          const info = state.dados.arestas_com_dentes[chave];
+          let estadoAtual;
+
+          if (typeof info === "number") {
+            estadoAtual = 1;
+          } else if (info && typeof info === "object" && !("estado" in info)) {
+            estadoAtual = info.complementar ? 2 : 1;
+          } else {
+            estadoAtual = Number(info.estado ?? 1);
+          }
+
+          if (estadoAtual === 1) {
+            state.dados.arestas_com_dentes[chave] = { p_start: pStart, espessura, estado: 2 };
+            setStatus("Estado 2 aplicado: Fêmea (para dentro).");
+          } else if (estadoAtual === 2) {
+            state.dados.arestas_com_dentes[chave] = { p_start: pStart, espessura, estado: 3 };
+            setStatus("Estado 3 aplicado: Macho (para fora).");
+          } else if (estadoAtual === 3) {
+            state.dados.arestas_com_dentes[chave] = { p_start: pStart, espessura, estado: 4 };
+            setStatus("Estado 4 aplicado: Fêmea (para fora).");
+          } else {
+            delete state.dados.arestas_com_dentes[chave];
+            setStatus("Dentes removidos da aresta.");
+          }
+        }
+
+        render();
+      }
+
+      function saveProject() {
+        syncStateFromUI();
+
+        const blob = new Blob(
+          [JSON.stringify(state.dados, null, 2)],
+          { type: "application/json;charset=utf-8" }
+        );
+
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "projeto.flavio";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+        setStatus("Projeto .flavio salvo.");
+      }
+
+      function loadProjectFromFile(file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const dados = JSON.parse(reader.result);
+
+            if (!dados.corte || !dados.contorno) {
+              throw new Error("Arquivo inválido: faltam camadas.");
+            }
+
+            if (!dados.arestas_com_dentes) dados.arestas_com_dentes = {};
+
+            state.dados = dados;
+            syncUIFromState();
+            updatePointsList();
+            render();
+            setStatus(`Projeto importado: ${file.name}`);
+          } catch (err) {
+            console.error(err);
+            alert("Erro ao importar projeto. Verifique se o arquivo .flavio é válido.");
+            setStatus("Falha ao importar projeto.");
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      function buildSVGString() {
+        syncStateFromUI();
+
+        const pc = state.dados.contorno.pot;
+        const vc = state.dados.contorno.vel;
+        const pco = state.dados.corte.pot;
+        const vco = state.dados.corte.vel;
+
+        const esc = (s) =>
+          String(s)
+            .replace(/&/g, "&amp;")
+            .replace(/"/g, "&quot;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+        function pathFromLayer(layerName) {
+          const pts = state.dados[layerName].pontos || [];
+          const segments = [];
+          let pontoInicial = null;
+          let pAnt = null;
+          let atual = [];
+
+          for (const p of pts) {
+            if (p === "QUEBRA") {
+              if (atual.length >= 2) segments.push({ pts: atual.slice(), closed: false });
+              atual = [];
+              pontoInicial = null;
+              pAnt = null;
+              continue;
+            }
+
+            if (pontoInicial === null) {
+              pontoInicial = p;
+              pAnt = p;
+              atual.push([p[0], p[1]]);
+            } else {
+              const info = getToothInfo(pAnt, p);
+
+              if (layerName === "corte" && info.has) {
+                const ptsDente = calcularPontosDente(
+                  pAnt,
+                  p,
+                  info.espessura,
+                  info.complementar,
+                  info.inverterDirecao,
+                  info.inverterNormal
+                );
+                for (let i = 1; i < ptsDente.length; i++) atual.push(ptsDente[i]);
+              } else {
+                atual.push([p[0], p[1]]);
+              }
+
+              pAnt = p;
+
+              if (p[0] === pontoInicial[0] && p[1] === pontoInicial[1]) {
+                segments.push({ pts: atual.slice(), closed: true });
+                atual = [];
+                pontoInicial = null;
+                pAnt = null;
+              }
+            }
+          }
+
+          if (atual.length >= 2) segments.push({ pts: atual.slice(), closed: false });
+          return segments;
+        }
+
+        function polylineToPath(pts, closed) {
+          if (!pts.length) return "";
+          let d = `M ${pts[0][0]} ${pts[0][1]}`;
+          for (let i = 1; i < pts.length; i++) {
+            d += ` L ${pts[i][0]} ${pts[i][1]}`;
+          }
+          if (closed) d += " Z";
+          return d;
+        }
+
+        const corteSegs = pathFromLayer("corte");
+        const contSegs = pathFromLayer("contorno");
+
+        const cortePaths = corteSegs
+          .map(seg => `<path d="${esc(polylineToPath(seg.pts, seg.closed))}" fill="none" stroke="red" stroke-width="0.3" />`)
+          .join("\n");
+
+        const contPaths = contSegs
+          .map(seg => `<path d="${esc(polylineToPath(seg.pts, seg.closed))}" fill="none" stroke="blue" stroke-width="0.3" />`)
+          .join("\n");
+
+        return `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+     width="${state.LARGURA_A3}mm"
+     height="${state.ALTURA_A3}mm"
+     viewBox="0 0 ${state.LARGURA_A3} ${state.ALTURA_A3}">
+  <g id="Corte"
+     inkscape:groupmode="layer"
+     pot="${esc(pco)}"
+     vel="${esc(vco)}"
+     power="${esc(pco)}"
+     speed="${esc(vco)}">
+    ${cortePaths}
+  </g>
+  <g id="Contorno"
+     inkscape:groupmode="layer"
+     pot="${esc(pc)}"
+     vel="${esc(vc)}"
+     power="${esc(pc)}"
+     speed="${esc(vc)}">
+    ${contPaths}
+  </g>
+</svg>`;
+      }
+
+      function exportSVG() {
+        try {
+          const svgContent = buildSVGString();
+          const blob = new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
+
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = "laser_a3.svg";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+
+          setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+          setStatus("SVG exportado com sucesso.");
+        } catch (err) {
+          console.error(err);
+          alert("Erro ao exportar SVG.");
+          setStatus("Falha ao exportar SVG.");
+        }
+      }
+
+      function getSVGPointFromEvent(evt) {
+        const rect = el.svg.getBoundingClientRect();
+        const vb = el.svg.viewBox.baseVal;
+        const x = ((evt.clientX - rect.left) / rect.width) * vb.width;
+        const y = ((evt.clientY - rect.top) / rect.height) * vb.height;
+        return { x, y };
+      }
+
+      function onSVGClick(evt) {
+        if (!state.modoDentes) return;
+
+        const pt = getSVGPointFromEvent(evt);
+        const aresta = obterArestaProxima(pt.x, pt.y);
+        if (!aresta) {
+          setStatus("Nenhuma aresta próxima encontrada. Clique mais perto de uma aresta da camada Corte.");
+          return;
+        }
+
+        cycleTeethOnEdge(aresta, pt.x, pt.y);
+      }
+
+      function initEvents() {
+        el.btnAdd.addEventListener("click", adicionarPonto);
+        el.btnUndo.addEventListener("click", removerUltimo);
+        el.btnBreak.addEventListener("click", novaFigura);
+        el.btnTeeth.addEventListener("click", toggleModoDentes);
+
+        el.btnSaveProject.addEventListener("click", saveProject);
+        el.btnLoadProject.addEventListener("click", () => el.fileInput.click());
+        el.fileInput.addEventListener("change", (e) => {
+          const file = e.target.files?.[0];
+          if (file) loadProjectFromFile(file);
+          e.target.value = "";
+        });
+
+        el.btnExportSVG.addEventListener("click", exportSVG);
+
+        el.rbCorte.addEventListener("change", () => alternarCamada("corte"));
+        el.rbContorno.addEventListener("change", () => alternarCamada("contorno"));
+
+        el.chkOutraCamada.addEventListener("change", () => {
+          state.verOutraCamada = el.chkOutraCamada.checked;
+          render();
+        });
+
+        [el.potCorte, el.velCorte, el.potContorno, el.velContorno].forEach(inp => {
+          inp.addEventListener("input", syncStateFromUI);
+        });
+
+        el.svg.addEventListener("click", onSVGClick);
+
+        window.addEventListener("resize", () => {
+          render();
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") {
+            cancelarModos();
+            return;
+          }
+
+          if (e.key === "Enter" && document.activeElement !== el.fileInput) {
+            // evitar submit implícito em inputs
+            e.preventDefault();
+            adicionarPonto();
+            return;
+          }
+
+          if (e.key === "Backspace" && !isTextFieldFocused()) {
+            e.preventDefault();
+            removerUltimo();
+            return;
+          }
+
+          if (e.key === " " && !isTextFieldFocused()) {
+            e.preventDefault();
+            novaFigura();
+          }
+        });
+      }
+
+      function seedExample() {
+        // opcional: deixe vazio por padrão.
+        // state.dados.corte.pontos = [[20,20],[120,20],[120,80],[20,80],[20,20],"QUEBRA"];
+      }
+
+      function init() {
+        syncUIFromState();
+        seedExample();
+        updatePointsList();
+        initEvents();
+        render();
+        setStatus("Pronto. Use Enter para adicionar pontos, Espaço para quebrar figura e Esc para cancelar dentes.");
+        el.entX.focus();
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
