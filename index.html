@@ -383,6 +383,9 @@ Continue clicando na aresta:
         LARGURA_A3: 420,
         ALTURA_A3: 297,
         ESCALA: 2.5,
+        viewportW: 0,
+        viewportH: 0,
+        frameA3: { x: 20, y: 20, w: 0, h: 0 },
         camadaAtual: "corte",
         verOutraCamada: true,
         modoDentes: false,
@@ -462,9 +465,33 @@ Continue clicando na aresta:
         const rect = el.svg.getBoundingClientRect();
         const w = Math.max(rect.width, 2);
         const h = Math.max(rect.height, 2);
-        state.ESCALA = Math.min((w - 40) / state.LARGURA_A3, (h - 40) / state.ALTURA_A3);
-        if (!isFinite(state.ESCALA) || state.ESCALA <= 0) state.ESCALA = 2.5;
+
+        state.viewportW = w;
+        state.viewportH = h;
+
+        const margem = 20;
+
+        state.ESCALA = Math.min(
+          (w - 2 * margem) / state.LARGURA_A3,
+          (h - 2 * margem) / state.ALTURA_A3
+        );
+
+        if (!isFinite(state.ESCALA) || state.ESCALA <= 0) {
+          state.ESCALA = 2.5;
+        }
+
+        const wA3 = mmToPx(state.LARGURA_A3);
+        const hA3 = mmToPx(state.ALTURA_A3);
+
+        state.frameA3 = {
+          x: (w - wA3) / 2,
+          y: (h - hA3) / 2,
+          w: wA3,
+          h: hA3
+        };
       }
+
+      
 
       function clearSVG() {
         while (el.svg.firstChild) el.svg.removeChild(el.svg.firstChild);
@@ -519,17 +546,80 @@ Continue clicando na aresta:
       }
 
       function renderGrid() {
-        const wPx = mmToPx(state.LARGURA_A3);
-        const hPx = mmToPx(state.ALTURA_A3);
+        const fx = state.frameA3.x;
+        const fy = state.frameA3.y;
+        const wPx = state.frameA3.w;
+        const hPx = state.frameA3.h;
 
         // fundo A3
         const bg = svgEl("rect", {
-          x: 0, y: 0,
+          x: fx,
+          y: fy,
           width: wPx,
           height: hPx,
           fill: "white"
         });
         el.svg.appendChild(bg);
+
+        // grade vertical
+        for (let x = 0; x <= state.LARGURA_A3; x += 10) {
+          const cor = (x % 50 !== 0) ? "#f0f0f0" : "#e0e0e0";
+          const px = fx + mmToPx(x);
+          drawLine(px, fy, px, fy + hPx, { stroke: cor, strokeWidth: 1 });
+        }
+
+        // grade horizontal
+        for (let y = 0; y <= state.ALTURA_A3; y += 10) {
+          const cor = (y % 50 !== 0) ? "#f0f0f0" : "#e0e0e0";
+          const py = fy + mmToPx(y);
+          drawLine(fx, py, fx + wPx, py, { stroke: cor, strokeWidth: 1 });
+        }
+
+        // eixos
+        drawLine(fx + 1, fy + 1, fx + wPx, fy + 1, { stroke: "black", strokeWidth: 2 });
+        drawLine(fx + 1, fy + 1, fx + 1, fy + hPx, { stroke: "black", strokeWidth: 2 });
+
+        // setas simples
+        drawLine(fx + wPx - 8, fy + 1, fx + wPx - 16, fy - 4, { stroke: "black", strokeWidth: 2 });
+        drawLine(fx + wPx - 8, fy + 1, fx + wPx - 16, fy + 6, { stroke: "black", strokeWidth: 2 });
+        drawLine(fx + 1, fy + hPx - 8, fx - 4, fy + hPx - 16, { stroke: "black", strokeWidth: 2 });
+        drawLine(fx + 1, fy + hPx - 8, fx + 6, fy + hPx - 16, { stroke: "black", strokeWidth: 2 });
+
+        drawText(fx + wPx - 30, fy + 16, "Eixo X", { fontSize: 11, fontWeight: "bold" });
+        drawText(fx + 26, fy + hPx - 10, "Eixo Y", { fontSize: 11, fontWeight: "bold" });
+
+        // marcas em X
+        for (let x = 0; x <= state.LARGURA_A3; x += 10) {
+          const px = fx + mmToPx(x);
+          const tamanho = (x % 50 === 0) ? 8 : 4;
+          drawLine(px, fy + 1, px, fy + tamanho, { stroke: "black", strokeWidth: 1.5 });
+          if (x > 0 && x % 50 === 0) {
+            drawText(px, fy + 16, String(x), { fontSize: 9, anchor: "middle" });
+          }
+        }
+
+        // marcas em Y
+        for (let y = 0; y <= state.ALTURA_A3; y += 10) {
+          const py = fy + mmToPx(y);
+          const tamanho = (y % 50 === 0) ? 8 : 4;
+          drawLine(fx + 1, py, fx + tamanho, py, { stroke: "black", strokeWidth: 1.5 });
+          if (y > 0 && y % 50 === 0) {
+            drawText(fx + 18, py + 3, String(y), { fontSize: 9 });
+          }
+        }
+
+        // contorno da folha
+        const border = svgEl("rect", {
+          x: fx,
+          y: fy,
+          width: wPx,
+          height: hPx,
+          fill: "none",
+          stroke: "#bdbdbd",
+          "stroke-width": 1.2
+        });
+        el.svg.appendChild(border);
+      }
 
         // grade
         for (let x = 0; x <= state.LARGURA_A3; x += 10) {
@@ -719,6 +809,9 @@ Continue clicando na aresta:
         const opacity = translucido ? 0.75 : 1;
         let pontoInicial = null;
 
+        const fx = state.frameA3.x;
+        const fy = state.frameA3.y;
+
         for (let i = 0; i < pts.length; i++) {
           const p = pts[i];
           if (p === "QUEBRA") {
@@ -726,8 +819,8 @@ Continue clicando na aresta:
             continue;
           }
 
-          const px = mmToPx(p[0]);
-          const py = mmToPx(p[1]);
+          const px = fx + mmToPx(p[0]);
+          const py = fy + mmToPx(p[1]);
 
           drawCircle(px, py, 2.2, { fill: cor, stroke: cor, opacity });
           drawText(px + 6, py - 6, letterLabel(i), {
@@ -756,18 +849,30 @@ Continue clicando na aresta:
                 for (let j = 0; j < pontosDente.length - 1; j++) {
                   const a = pontosDente[j];
                   const b = pontosDente[j + 1];
-                  drawLine(mmToPx(a[0]), mmToPx(a[1]), mmToPx(b[0]), mmToPx(b[1]), {
+                  drawLine(
+                    fx + mmToPx(a[0]),
+                    fy + mmToPx(a[1]),
+                    fx + mmToPx(b[0]),
+                    fy + mmToPx(b[1]),
+                    {
+                      stroke: cor,
+                      strokeWidth: translucido ? 1 : 2,
+                      opacity
+                    }
+                  );
+                }
+              } else {
+                drawLine(
+                  fx + mmToPx(pAnt[0]),
+                  fy + mmToPx(pAnt[1]),
+                  px,
+                  py,
+                  {
                     stroke: cor,
                     strokeWidth: translucido ? 1 : 2,
                     opacity
-                  });
-                }
-              } else {
-                drawLine(mmToPx(pAnt[0]), mmToPx(pAnt[1]), px, py, {
-                  stroke: cor,
-                  strokeWidth: translucido ? 1 : 2,
-                  opacity
-                });
+                  }
+                );
               }
             }
 
@@ -777,7 +882,6 @@ Continue clicando na aresta:
           }
         }
       }
-
       function updatePointsList() {
         el.pointsList.innerHTML = "";
         const pts = state.dados[state.camadaAtual].pontos || [];
@@ -793,9 +897,7 @@ Continue clicando na aresta:
         updateScale();
         clearSVG();
 
-        const viewWidth = mmToPx(state.LARGURA_A3);
-        const viewHeight = mmToPx(state.ALTURA_A3);
-        el.svg.setAttribute("viewBox", `0 0 ${viewWidth} ${viewHeight}`);
+        el.svg.setAttribute("viewBox", `0 0 ${state.viewportW} ${state.viewportH}`);
 
         renderGrid();
 
@@ -911,6 +1013,9 @@ Continue clicando na aresta:
         let menorDist = Infinity;
         let pontoInicial = null;
 
+        const fx = state.frameA3.x;
+        const fy = state.frameA3.y;
+
         for (let i = 0; i < pts.length; i++) {
           const p = pts[i];
           if (p === "QUEBRA") {
@@ -923,10 +1028,10 @@ Continue clicando na aresta:
           } else {
             const pAnt = pts[i - 1];
             if (pAnt !== "QUEBRA") {
-              const cx1 = mmToPx(pAnt[0]);
-              const cy1 = mmToPx(pAnt[1]);
-              const cx2 = mmToPx(p[0]);
-              const cy2 = mmToPx(p[1]);
+              const cx1 = fx + mmToPx(pAnt[0]);
+              const cy1 = fy + mmToPx(pAnt[1]);
+              const cx2 = fx + mmToPx(p[0]);
+              const cy2 = fy + mmToPx(p[1]);
 
               const dist = distanciaPontoSegmento(px, py, cx1, cy1, cx2, cy2);
               if (dist < limitePixels && dist < menorDist) {
@@ -944,21 +1049,26 @@ Continue clicando na aresta:
         return melhorAresta;
       }
 
+
       function cycleTeethOnEdge(edge, clickXpx, clickYpx) {
         if (!edge) return;
         const [pA, pB] = edge;
 
-        const xMm = pxToMm(clickXpx);
-        const yMm = pxToMm(clickYpx);
+        const xMm = (clickXpx - state.frameA3.x) / state.ESCALA;
+        const yMm = (clickYpx - state.frameA3.y) / state.ESCALA;
+
         const distA = Math.hypot(xMm - pA[0], yMm - pA[1]);
         const distB = Math.hypot(xMm - pB[0], yMm - pB[1]);
 
         const pStart = distA < distB ? [pA[0], pA[1]] : [pB[0], pB[1]];
         const chave = edgeKey(pA, pB);
+
         let espessura = parseFloat(el.entMdf.value);
         if (!Number.isFinite(espessura)) espessura = 3.0;
 
-        if (!state.dados.arestas_com_dentes) state.dados.arestas_com_dentes = {};
+        if (!state.dados.arestas_com_dentes) {
+          state.dados.arestas_com_dentes = {};
+        }
 
         if (!(chave in state.dados.arestas_com_dentes)) {
           state.dados.arestas_com_dentes[chave] = {
@@ -1177,12 +1287,12 @@ Continue clicando na aresta:
       }
 
       function getSVGPointFromEvent(evt) {
-        const pt = el.svg.createSVGPoint();
-        pt.x = evt.clientX;
-        pt.y = evt.clientY;
+        const rect = el.svg.getBoundingClientRect();
 
-        const svgP = pt.matrixTransform(el.svg.getScreenCTM().inverse());
-        return { x: svgP.x, y: svgP.y };
+        const x = ((evt.clientX - rect.left) / rect.width) * state.viewportW;
+        const y = ((evt.clientY - rect.top) / rect.height) * state.viewportH;
+
+        return { x, y };
       }
 
 
@@ -1190,6 +1300,18 @@ Continue clicando na aresta:
         if (!state.modoDentes) return;
 
         const pt = getSVGPointFromEvent(evt);
+
+        const dentroDoA3 =
+          pt.x >= state.frameA3.x &&
+          pt.x <= state.frameA3.x + state.frameA3.w &&
+          pt.y >= state.frameA3.y &&
+          pt.y <= state.frameA3.y + state.frameA3.h;
+
+        if (!dentroDoA3) {
+          setStatus("Clique dentro da área do quadriculado A3.");
+          return;
+        }
+
         const aresta = obterArestaProxima(pt.x, pt.y);
         if (!aresta) {
           setStatus("Nenhuma aresta próxima encontrada. Clique mais perto de uma aresta da camada Corte.");
@@ -1198,6 +1320,7 @@ Continue clicando na aresta:
 
         cycleTeethOnEdge(aresta, pt.x, pt.y);
       }
+
 
       function initEvents() {
         el.btnAdd.addEventListener("click", adicionarPonto);
