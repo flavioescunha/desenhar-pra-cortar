@@ -620,62 +620,7 @@ Continue clicando na aresta:
         });
         el.svg.appendChild(border);
       }
-
-        // grade
-        for (let x = 0; x <= state.LARGURA_A3; x += 10) {
-          const cor = (x % 50 !== 0) ? "#f0f0f0" : "#e0e0e0";
-          drawLine(mmToPx(x), 0, mmToPx(x), hPx, { stroke: cor, strokeWidth: 1 });
-        }
-
-        for (let y = 0; y <= state.ALTURA_A3; y += 10) {
-          const cor = (y % 50 !== 0) ? "#f0f0f0" : "#e0e0e0";
-          drawLine(0, mmToPx(y), wPx, mmToPx(y), { stroke: cor, strokeWidth: 1 });
-        }
-
-        // eixos
-        drawLine(1, 1, wPx, 1, { stroke: "black", strokeWidth: 2 });
-        drawLine(1, 1, 1, hPx, { stroke: "black", strokeWidth: 2 });
-
-        // setas simples
-        drawLine(wPx - 8, 1, wPx - 16, -4, { stroke: "black", strokeWidth: 2 });
-        drawLine(wPx - 8, 1, wPx - 16, 6, { stroke: "black", strokeWidth: 2 });
-        drawLine(1, hPx - 8, -4, hPx - 16, { stroke: "black", strokeWidth: 2 });
-        drawLine(1, hPx - 8, 6, hPx - 16, { stroke: "black", strokeWidth: 2 });
-
-        drawText(wPx - 30, 16, "Eixo X", { fontSize: 11, fontWeight: "bold" });
-        drawText(26, hPx - 10, "Eixo Y", { fontSize: 11, fontWeight: "bold" });
-
-        // marcas
-        for (let x = 0; x <= state.LARGURA_A3; x += 10) {
-          const px = mmToPx(x);
-          const tamanho = (x % 50 === 0) ? 8 : 4;
-          drawLine(px, 1, px, tamanho, { stroke: "black", strokeWidth: 1.5 });
-          if (x > 0 && x % 50 === 0) {
-            drawText(px, 16, String(x), { fontSize: 9, anchor: "middle" });
-          }
-        }
-
-        for (let y = 0; y <= state.ALTURA_A3; y += 10) {
-          const py = mmToPx(y);
-          const tamanho = (y % 50 === 0) ? 8 : 4;
-          drawLine(1, py, tamanho, py, { stroke: "black", strokeWidth: 1.5 });
-          if (y > 0 && y % 50 === 0) {
-            drawText(18, py + 3, String(y), { fontSize: 9 });
-          }
-        }
-
-        // contorno da folha
-        const border = svgEl("rect", {
-          x: 0, y: 0,
-          width: wPx,
-          height: hPx,
-          fill: "none",
-          stroke: "#bdbdbd",
-          "stroke-width": 1.2
-        });
-        el.svg.appendChild(border);
-      }
-
+        
       function edgeKey(p1, p2) {
         const a = JSON.stringify([Number(p1[0]), Number(p1[1])]);
         const b = JSON.stringify([Number(p2[0]), Number(p2[1])]);
