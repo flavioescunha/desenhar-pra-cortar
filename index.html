@@ -1177,12 +1177,14 @@ Continue clicando na aresta:
       }
 
       function getSVGPointFromEvent(evt) {
-        const rect = el.svg.getBoundingClientRect();
-        const vb = el.svg.viewBox.baseVal;
-        const x = ((evt.clientX - rect.left) / rect.width) * vb.width;
-        const y = ((evt.clientY - rect.top) / rect.height) * vb.height;
-        return { x, y };
+        const pt = el.svg.createSVGPoint();
+        pt.x = evt.clientX;
+        pt.y = evt.clientY;
+
+        const svgP = pt.matrixTransform(el.svg.getScreenCTM().inverse());
+        return { x: svgP.x, y: svgP.y };
       }
+
 
       function onSVGClick(evt) {
         if (!state.modoDentes) return;
