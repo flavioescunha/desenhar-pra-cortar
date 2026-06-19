@@ -318,9 +318,9 @@
       <div class="card">
         <div class="section-title">4. Arquivos</div>
         <div class="row">
-          <button id="btnSaveProject" class="btn-gray" style="flex:1;">Salvar .flavio</button>
-          <button id="btnLoadProject" class="btn-gray" style="flex:1;">Importar .flavio</button>
-          <input id="fileInput" type="file" accept=".flavio,.json" style="display:none;" />
+          <button id="btnSaveProject" class="btn-gray" style="flex:1;">Salvar .fla</button>
+          <button id="btnLoadProject" class="btn-gray" style="flex:1;">Importar .fla</button>
+          <input id="fileInput" type="file" accept=".fla,.flavio,.json" style="display:none;" />
         </div>
         <div class="row">
           <button id="btnExportSVG" class="btn-export w-100">Exportar SVG (para laser)</button>
@@ -332,6 +332,10 @@
         <div class="row">
           <label for="entMdf" class="small">Espessura (mm):</label>
           <input id="entMdf" class="w-90" type="number" step="any" value="3.0" />
+        </div>
+        <div class="row">
+          <label for="entComprimentoDente" class="small">Comprimento do dente (mm):</label>
+          <input id="entComprimentoDente" class="w-90" type="number" step="any" value="10" />
         </div>
         <div class="row">
           <button id="btnTeeth" class="btn-teeth w-100">🦷 Gerar dentes em aresta</button>
@@ -409,6 +413,7 @@ Continue clicando na aresta:
         rbContorno: document.getElementById("rbContorno"),
         pointsList: document.getElementById("pointsList"),
         entMdf: document.getElementById("entMdf"),
+        entComprimentoDente: document.getElementById("entComprimentoDente"),
         btnAdd: document.getElementById("btnAdd"),
         btnUndo: document.getElementById("btnUndo"),
         btnBreak: document.getElementById("btnBreak"),
@@ -634,6 +639,7 @@ Continue clicando na aresta:
           return {
             has: false,
             espessura: 0,
+            comprimento: 10,
             complementar: false,
             inverterDirecao: false,
             inverterNormal: false
@@ -644,32 +650,52 @@ Continue clicando na aresta:
 
         // retrocompatibilidade
         if (typeof info === "number") {
-          info = { p_start: [...p1], espessura: info, estado: 1 };
+          info = { p_start: [...p1], espessura: info, comprimento: 10, estado: 1 };
         } else if (info && typeof info === "object" && !("estado" in info)) {
           info.estado = info.complementar ? 2 : 1;
         }
 
         const pStart = Array.isArray(info.p_start) ? info.p_start : p1;
         const inverterDirecao = !(Number(p1[0]) === Number(pStart[0]) && Number(p1[1]) === Number(pStart[1]));
+
         const estado = Number(info.estado ?? 1);
         const complementar = (estado === 2 || estado === 4);
         const inverterNormal = (estado === 3 || estado === 4);
 
+        let comprimento = Number(info.comprimento ?? 10);
+        if (!Number.isFinite(comprimento) || comprimento <= 0) {
+          comprimento = 10;
+        }
+
         return {
           has: true,
           espessura: Number(info.espessura ?? 3),
+          comprimento,
           complementar,
           inverterDirecao,
           inverterNormal
         };
       }
+      
+      function calcularPontosDente(
+        p1,
+        p2,
+        espessura,
+        complementar = false,
+        inverterDirecao = false,
+        inverterNormal = false,
+        comprimento = 10.0
+      ) {
+        comprimento = Number(comprimento);
+        if (!Number.isFinite(comprimento) || comprimento <= 0) {
+          comprimento = 10.0;
+        }
 
-      function calcularPontosDente(p1, p2, espessura, complementar = false, inverterDirecao = false, inverterNormal = false) {
         const dx = p2[0] - p1[0];
         const dy = p2[1] - p1[1];
         const dist = Math.hypot(dx, dy);
 
-        if (dist < 10) return [p1, p2];
+        if (dist < comprimento) return [p1, p2];
 
         let ux = dx / dist;
         let uy = dy / dist;
@@ -681,7 +707,6 @@ Continue clicando na aresta:
           ny = -ny;
         }
 
-        const comprimento = 10.0;
         const chunksOriginais = [];
         let curr = 0.0;
         let i = 0;
@@ -690,6 +715,7 @@ Continue clicando na aresta:
           const step = Math.min(comprimento, dist - curr);
           let isTooth = (i % 2 === 0);
           if (complementar) isTooth = !isTooth;
+
           chunksOriginais.push([curr, curr + step, isTooth]);
           curr += step;
           i++;
@@ -788,7 +814,8 @@ Continue clicando na aresta:
                   info.espessura,
                   info.complementar,
                   info.inverterDirecao,
-                  info.inverterNormal
+                  info.inverterNormal,
+                  info.comprimento
                 );
 
                 for (let j = 0; j < pontosDente.length - 1; j++) {
@@ -993,8 +1020,7 @@ Continue clicando na aresta:
 
         return melhorAresta;
       }
-
-
+      
       function cycleTeethOnEdge(edge, clickXpx, clickYpx) {
         if (!edge) return;
         const [pA, pB] = edge;
@@ -1009,7 +1035,14 @@ Continue clicando na aresta:
         const chave = edgeKey(pA, pB);
 
         let espessura = parseFloat(el.entMdf.value);
-        if (!Number.isFinite(espessura)) espessura = 3.0;
+        if (!Number.isFinite(espessura) || espessura <= 0) {
+          espessura = 3.0;
+        }
+
+        let comprimento = parseFloat(el.entComprimentoDente.value);
+        if (!Number.isFinite(comprimento) || comprimento <= 0) {
+          comprimento = 10.0;
+        }
 
         if (!state.dados.arestas_com_dentes) {
           state.dados.arestas_com_dentes = {};
@@ -1019,6 +1052,7 @@ Continue clicando na aresta:
           state.dados.arestas_com_dentes[chave] = {
             p_start: pStart,
             espessura,
+            comprimento,
             estado: 1
           };
           setStatus("Estado 1 aplicado: Macho (para dentro).");
@@ -1035,13 +1069,13 @@ Continue clicando na aresta:
           }
 
           if (estadoAtual === 1) {
-            state.dados.arestas_com_dentes[chave] = { p_start: pStart, espessura, estado: 2 };
+            state.dados.arestas_com_dentes[chave] = { p_start: pStart, espessura, comprimento, estado: 2 };
             setStatus("Estado 2 aplicado: Fêmea (para dentro).");
           } else if (estadoAtual === 2) {
-            state.dados.arestas_com_dentes[chave] = { p_start: pStart, espessura, estado: 3 };
+            state.dados.arestas_com_dentes[chave] = { p_start: pStart, espessura, comprimento, estado: 3 };
             setStatus("Estado 3 aplicado: Macho (para fora).");
           } else if (estadoAtual === 3) {
-            state.dados.arestas_com_dentes[chave] = { p_start: pStart, espessura, estado: 4 };
+            state.dados.arestas_com_dentes[chave] = { p_start: pStart, espessura, comprimento, estado: 4 };
             setStatus("Estado 4 aplicado: Fêmea (para fora).");
           } else {
             delete state.dados.arestas_com_dentes[chave];
@@ -1062,13 +1096,13 @@ Continue clicando na aresta:
 
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
-        a.download = "projeto.flavio";
+        a.download = "projeto.fla";
         document.body.appendChild(a);
         a.click();
         a.remove();
 
         setTimeout(() => URL.revokeObjectURL(a.href), 1500);
-        setStatus("Projeto .flavio salvo.");
+        setStatus("Projeto .fla salvo.");
       }
 
       function loadProjectFromFile(file) {
@@ -1090,7 +1124,7 @@ Continue clicando na aresta:
             setStatus(`Projeto importado: ${file.name}`);
           } catch (err) {
             console.error(err);
-            alert("Erro ao importar projeto. Verifique se o arquivo .flavio é válido.");
+            alert("Erro ao importar projeto. Verifique se o arquivo .fla é válido.");
             setStatus("Falha ao importar projeto.");
           }
         };
@@ -1142,7 +1176,8 @@ Continue clicando na aresta:
                   info.espessura,
                   info.complementar,
                   info.inverterDirecao,
-                  info.inverterNormal
+                  info.inverterNormal,
+                  info.comprimento
                 );
                 for (let i = 1; i < ptsDente.length; i++) atual.push(ptsDente[i]);
               } else {
