@@ -959,8 +959,12 @@ Continue clicando na aresta:
           return;
         }
 
-        if (selecionados.some(p => p === "QUEBRA")) {
-          setStatus("A seleção não pode conter QUEBRA. Selecione apenas pontos consecutivos.");
+        // Agora permite QUEBRA no meio da seleção.
+        // Mas precisa haver pelo menos um ponto numérico.
+        const pontosSelecionados = selecionados.filter(p => Array.isArray(p));
+
+        if (pontosSelecionados.length === 0) {
+          setStatus("A seleção contém apenas QUEBRA. Selecione também pontos.");
           return;
         }
 
@@ -971,16 +975,42 @@ Continue clicando na aresta:
           return;
         }
 
+        // Ponto mais à direita de TODA a lista atual
         const maiorXLista = Math.max(...pontosNumericosLista.map(p => Number(p[0])));
-        const menorXSelecao = Math.min(...selecionados.map(p => Number(p[0])));
 
+        // Ponto mais à esquerda da seleção
+        const menorXSelecao = Math.min(...pontosSelecionados.map(p => Number(p[0])));
+
+        // Faz a cópia começar 10 mm à direita do maior X da lista
         const deslocamentoX = (maiorXLista + 10) - menorXSelecao;
 
-        const copiados = selecionados.map(p => [
-          round2(Number(p[0]) + deslocamentoX),
-          round2(Number(p[1]))
-        ]);
+        const copiados = selecionados.map(p => {
+          if (p === "QUEBRA") {
+            return "QUEBRA";
+          }
 
+          return [
+            round2(Number(p[0]) + deslocamentoX),
+            round2(Number(p[1]))
+          ];
+        });
+
+        // Evita QUEBRA duplicada no início da cópia
+        while (copiados.length > 0 && copiados[0] === "QUEBRA") {
+          copiados.shift();
+        }
+
+        // Evita QUEBRA sobrando no final da cópia
+        while (copiados.length > 0 && copiados[copiados.length - 1] === "QUEBRA") {
+          copiados.pop();
+        }
+
+        if (copiados.length === 0) {
+          setStatus("Nada para copiar após remover QUEBRAS nas extremidades.");
+          return;
+        }
+
+        // Se já existir conteúdo antes da cópia, separa com QUEBRA
         if (pts.length > 0 && pts[pts.length - 1] !== "QUEBRA") {
           pts.push("QUEBRA");
         }
@@ -999,7 +1029,7 @@ Continue clicando na aresta:
         render();
 
         setStatus(
-          `Seleção copiada ${round2(deslocamentoX)} mm para a direita. Novo bloco: ${letterLabel(novoInicio)} até ${letterLabel(novoFim)}.`
+          `Seleção copiada ${round2(deslocamentoX)} mm para a direita, preservando QUEBRAS internas. Novo bloco: ${letterLabel(novoInicio)} até ${letterLabel(novoFim)}.`
         );
       }
 
