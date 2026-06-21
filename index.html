@@ -167,6 +167,14 @@
       background: #f7f7f7;
     }
 
+    .points-item {
+      cursor: pointer;
+    }
+
+    .points-item.editable:hover {
+      background: #eef6ff;
+    }
+
     .points-item.selected {
       background: #dbeafe;
       outline: 1px solid #60a5fa;
@@ -876,6 +884,7 @@ Continue clicando na aresta:
           }
         }
       }
+
       function updatePointsList() {
         el.pointsList.innerHTML = "";
 
@@ -885,6 +894,11 @@ Continue clicando na aresta:
         pts.forEach((p, i) => {
           const item = document.createElement("div");
           item.className = "points-item";
+
+          if (Array.isArray(p)) {
+            item.classList.add("editable");
+            item.title = "Duplo clique para editar este ponto";
+          }
 
           const selecionado =
             sel.inicio !== null &&
@@ -900,6 +914,12 @@ Continue clicando na aresta:
 
           item.addEventListener("click", (event) => {
             selecionarPontoLista(i, event);
+          });
+
+          item.addEventListener("dblclick", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            editarPontoLista(i);
           });
 
           el.pointsList.appendChild(item);
@@ -946,6 +966,60 @@ Continue clicando na aresta:
         }
       }
 
+      function editarPontoLista(index) {
+        const pts = state.dados[state.camadaAtual].pontos || [];
+        const pontoAtual = pts[index];
+
+        if (!Array.isArray(pontoAtual)) {
+          setStatus("QUEBRA não é um ponto editável.");
+          return;
+        }
+
+        const xAtual = Number(pontoAtual[0]);
+        const yAtual = Number(pontoAtual[1]);
+
+        const novoXtxt = prompt(`Novo X para o ponto ${letterLabel(index)}:`, String(xAtual));
+        if (novoXtxt === null) return;
+
+        const novoYtxt = prompt(`Novo Y para o ponto ${letterLabel(index)}:`, String(yAtual));
+        if (novoYtxt === null) return;
+
+        const novoX = parseFloat(String(novoXtxt).replace(",", "."));
+        const novoY = parseFloat(String(novoYtxt).replace(",", "."));
+
+        if (!Number.isFinite(novoX) || !Number.isFinite(novoY)) {
+          setStatus("Valores inválidos. Use números para X e Y.");
+          return;
+        }
+
+        // Se estiver editando a camada corte, remove dentes ligados ao ponto antigo,
+        // pois as chaves das arestas usam as coordenadas antigas.
+        if (state.camadaAtual === "corte") {
+          removerDentesRelacionadosAoPonto(pontoAtual);
+        }
+
+        pts[index] = [round2(novoX), round2(novoY)];
+
+        updatePointsList();
+        render();
+
+        setStatus(
+          `Ponto ${letterLabel(index)} alterado de (${xAtual}, ${yAtual}) para (${round2(novoX)}, ${round2(novoY)}).`
+        );
+      }
+
+      function removerDentesRelacionadosAoPonto(ponto) {
+        if (!state.dados.arestas_com_dentes) return;
+
+        const alvo = JSON.stringify([Number(ponto[0]), Number(ponto[1])]);
+
+        for (const chave of Object.keys(state.dados.arestas_com_dentes)) {
+          if (chave.includes(alvo)) {
+            delete state.dados.arestas_com_dentes[chave];
+          }
+        }
+      }
+      
       function copiarSelecaoParaDireita() {
         const pts = state.dados[state.camadaAtual].pontos || [];
         const sel = state.selecaoLista;
