@@ -167,6 +167,12 @@
       background: #f7f7f7;
     }
 
+    .points-item.selected {
+      background: #dbeafe;
+      outline: 1px solid #60a5fa;
+      font-weight: bold;
+    }
+
     .canvas-wrap {
       flex: 1;
       background: white;
@@ -311,9 +317,19 @@
       </div>
 
       <div class="card">
-        <div class="section-title">3. Pontos da camada</div>
-        <div id="pointsList" class="points-list"></div>
+      <div class="section-title">3. Pontos da camada</div>
+      <div id="pointsList" class="points-list"></div>
+
+      <div class="row" style="margin-top: 8px;">
+        <button id="btnCopySelectionRight" class="btn-blue w-100">
+          Copiar seleção 10 mm à direita
+        </button>
       </div>
+
+      <div class="small">
+        Clique em um ponto e depois em outro para selecionar um intervalo consecutivo.
+      </div>
+    </div>
 
       <div class="card">
         <div class="section-title">4. Arquivos</div>
@@ -393,6 +409,11 @@ Continue clicando na aresta:
         camadaAtual: "corte",
         verOutraCamada: true,
         modoDentes: false,
+        selecaoLista: {
+          inicio: null,
+          fim: null,
+          ultimo: null
+        },
         dados: {
           corte: { pontos: [], pot: "100", vel: "20" },
           contorno: { pontos: [], pot: "30", vel: "50" },
@@ -412,6 +433,7 @@ Continue clicando na aresta:
         rbCorte: document.getElementById("rbCorte"),
         rbContorno: document.getElementById("rbContorno"),
         pointsList: document.getElementById("pointsList"),
+        btnCopySelectionRight: document.getElementById("btnCopySelectionRight"),
         entMdf: document.getElementById("entMdf"),
         entComprimentoDente: document.getElementById("entComprimentoDente"),
         btnAdd: document.getElementById("btnAdd"),
@@ -856,13 +878,129 @@ Continue clicando na aresta:
       }
       function updatePointsList() {
         el.pointsList.innerHTML = "";
+
         const pts = state.dados[state.camadaAtual].pontos || [];
+        const sel = state.selecaoLista;
+
         pts.forEach((p, i) => {
           const item = document.createElement("div");
           item.className = "points-item";
+
+          const selecionado =
+            sel.inicio !== null &&
+            sel.fim !== null &&
+            i >= sel.inicio &&
+            i <= sel.fim;
+
+          if (selecionado) {
+            item.classList.add("selected");
+          }
+
           item.textContent = `${letterLabel(i)}: ${Array.isArray(p) ? `(${p[0]}, ${p[1]})` : p}`;
+
+          item.addEventListener("click", (event) => {
+            selecionarPontoLista(i, event);
+          });
+
           el.pointsList.appendChild(item);
         });
+      }
+
+      function selecionarPontoLista(index, event) {
+        const sel = state.selecaoLista;
+
+        if (event.shiftKey && sel.ultimo !== null) {
+          sel.inicio = Math.min(sel.ultimo, index);
+          sel.fim = Math.max(sel.ultimo, index);
+        } else if (
+          sel.inicio !== null &&
+          sel.fim !== null &&
+          sel.inicio === sel.fim &&
+          sel.inicio !== index
+        ) {
+          sel.fim = index;
+
+          const a = Math.min(sel.inicio, sel.fim);
+          const b = Math.max(sel.inicio, sel.fim);
+
+          sel.inicio = a;
+          sel.fim = b;
+        } else {
+          sel.inicio = index;
+          sel.fim = index;
+          sel.ultimo = index;
+        }
+
+        updatePointsList();
+
+        if (sel.inicio === sel.fim) {
+          setStatus(`Ponto ${letterLabel(sel.inicio)} selecionado. Clique em outro ponto para selecionar um intervalo.`);
+        } else {
+          setStatus(`Selecionados os pontos de ${letterLabel(sel.inicio)} até ${letterLabel(sel.fim)}.`);
+        }
+      }
+
+      function copiarSelecaoParaDireita() {
+        const pts = state.dados[state.camadaAtual].pontos || [];
+        const sel = state.selecaoLista;
+
+        if (sel.inicio === null || sel.fim === null) {
+          setStatus("Selecione primeiro uma sequência de pontos na lista.");
+          return;
+        }
+
+        const inicio = Math.min(sel.inicio, sel.fim);
+        const fim = Math.max(sel.inicio, sel.fim);
+
+        const selecionados = pts.slice(inicio, fim + 1);
+
+        if (selecionados.length === 0) {
+          setStatus("Nenhum ponto selecionado.");
+          return;
+        }
+
+        if (selecionados.some(p => p === "QUEBRA")) {
+          setStatus("A seleção não pode conter QUEBRA. Selecione apenas pontos consecutivos.");
+          return;
+        }
+
+        const pontosNumericosLista = pts.filter(p => Array.isArray(p));
+
+        if (pontosNumericosLista.length === 0) {
+          setStatus("Não há pontos válidos na lista.");
+          return;
+        }
+
+        const maiorXLista = Math.max(...pontosNumericosLista.map(p => Number(p[0])));
+        const menorXSelecao = Math.min(...selecionados.map(p => Number(p[0])));
+
+        const deslocamentoX = (maiorXLista + 10) - menorXSelecao;
+
+        const copiados = selecionados.map(p => [
+          round2(Number(p[0]) + deslocamentoX),
+          round2(Number(p[1]))
+        ]);
+
+        if (pts.length > 0 && pts[pts.length - 1] !== "QUEBRA") {
+          pts.push("QUEBRA");
+        }
+
+        const novoInicio = pts.length;
+
+        copiados.forEach(p => pts.push(p));
+
+        const novoFim = pts.length - 1;
+
+        state.selecaoLista.inicio = novoInicio;
+        state.selecaoLista.fim = novoFim;
+        state.selecaoLista.ultimo = novoInicio;
+
+        updatePointsList();
+        render();
+
+        setStatus(
+          `Seleção copiada ${round2(deslocamentoX)} mm para a direita. Novo bloco: ${letterLabel(novoInicio)} até ${letterLabel(novoFim)}.`
+        );
       }
 
       function render() {
@@ -944,6 +1082,11 @@ Continue clicando na aresta:
 
       function alternarCamada(camada) {
         state.camadaAtual = camada;
+
+        state.selecaoLista.inicio = null;
+        state.selecaoLista.fim = null;
+        state.selecaoLista.ultimo = null;
+
         updatePointsList();
         render();
         setStatus(`Camada ativa: ${camada}`);
@@ -1306,6 +1449,7 @@ Continue clicando na aresta:
         el.btnAdd.addEventListener("click", adicionarPonto);
         el.btnUndo.addEventListener("click", removerUltimo);
         el.btnBreak.addEventListener("click", novaFigura);
+        el.btnCopySelectionRight.addEventListener("click", copiarSelecaoParaDireita);
         el.btnTeeth.addEventListener("click", toggleModoDentes);
 
         el.btnSaveProject.addEventListener("click", saveProject);
