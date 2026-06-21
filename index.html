@@ -906,6 +906,12 @@ Continue clicando na aresta:
         });
       }
 
+      function rolarListaParaFinal() {
+        setTimeout(() => {
+          el.pointsList.scrollTop = el.pointsList.scrollHeight;
+        }, 0);
+      }
+
       function selecionarPontoLista(index, event) {
         const sel = state.selecaoLista;
 
@@ -1082,6 +1088,7 @@ Continue clicando na aresta:
 
         state.dados[state.camadaAtual].pontos.push([x, y]);
         updatePointsList();
+        rolarListaParaFinal();
         render();
 
         el.entX.value = "";
@@ -1089,6 +1096,7 @@ Continue clicando na aresta:
         el.entX.focus();
         setStatus(`Ponto adicionado na camada ${state.camadaAtual}: (${x}, ${y})`);
       }
+
 
       function removerUltimo() {
         const pts = state.dados[state.camadaAtual].pontos;
@@ -1105,6 +1113,7 @@ Continue clicando na aresta:
         if (pts.length > 0 && pts[pts.length - 1] !== "QUEBRA") {
           pts.push("QUEBRA");
           updatePointsList();
+          rolarListaParaFinal();
           render();
           setStatus(`Nova figura iniciada na camada ${state.camadaAtual}.`);
         }
