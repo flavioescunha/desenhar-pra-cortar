@@ -317,7 +317,7 @@
           <button id="btnAdd" class="btn-primary w-100">Adicionar ponto (Enter)</button>
         </div>
         <div class="row">
-          <button id="btnUndo" class="btn-warn w-100">Remover último (Backspace)</button>
+          <button id="btnUndo" class="btn-warn w-100">Remover selecionado (Backspace)</button>
         </div>
         <div class="row">
           <button id="btnBreak" class="btn-break w-100">✂️ Cortar linha / Nova figura (Espaço)</button>
@@ -335,7 +335,7 @@
       </div>
 
       <div class="small">
-        Clique em um ponto e depois em outro para selecionar um intervalo consecutivo.
+        Clique em um ponto e depois em outro para selecionar um intervalo. Use Backspace ou o botão para remover a seleção.
       </div>
     </div>
 
@@ -1174,11 +1174,51 @@ Continue clicando na aresta:
 
       function removerUltimo() {
         const pts = state.dados[state.camadaAtual].pontos;
-        if (pts.length > 0) {
-          const removido = pts.pop();
-          updatePointsList();
-          render();
-          setStatus(`Último item removido da camada ${state.camadaAtual}: ${JSON.stringify(removido)}`);
+        const sel = state.selecaoLista;
+
+        if (!pts || pts.length === 0) {
+          setStatus("Não há pontos para remover.");
+          return;
+        }
+
+        if (sel.inicio === null || sel.fim === null) {
+          setStatus("Selecione primeiro um ponto ou intervalo na lista para remover.");
+          return;
+        }
+
+        const inicio = Math.min(sel.inicio, sel.fim);
+        const fim = Math.max(sel.inicio, sel.fim);
+
+        if (inicio < 0 || fim >= pts.length) {
+          setStatus("Seleção inválida.");
+          return;
+        }
+
+        const removidos = pts.slice(inicio, fim + 1);
+
+        // Se estiver removendo da camada corte, apaga dentes ligados aos pontos removidos.
+        if (state.camadaAtual === "corte") {
+          removidos.forEach(item => {
+            if (Array.isArray(item)) {
+              removerDentesRelacionadosAoPonto(item);
+            }
+          });
+        }
+
+        pts.splice(inicio, fim - inicio + 1);
+
+        // Limpa seleção após remover
+        state.selecaoLista.inicio = null;
+        state.selecaoLista.fim = null;
+        state.selecaoLista.ultimo = null;
+
+        updatePointsList();
+        render();
+
+        if (removidos.length === 1) {
+          setStatus(`Item removido: ${JSON.stringify(removidos[0])}`);
+        } else {
+          setStatus(`${removidos.length} itens removidos da camada ${state.camadaAtual}.`);
         }
       }
 
