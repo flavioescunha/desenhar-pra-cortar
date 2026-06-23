@@ -333,6 +333,11 @@
           Copiar seleção 10 mm à direita
         </button>
       </div>
+      <div class="row">
+      <button id="btnCircle3Points" class="btn-gray w-100">
+        ⭕ Círculo por 3 pontos selecionados
+      </button>
+    </div>
 
       <div class="small">
         Clique em um ponto e depois em outro para selecionar um intervalo. Use Backspace ou o botão para remover a seleção.
@@ -442,6 +447,7 @@ Continue clicando na aresta:
         rbContorno: document.getElementById("rbContorno"),
         pointsList: document.getElementById("pointsList"),
         btnCopySelectionRight: document.getElementById("btnCopySelectionRight"),
+        btnCircle3Points: document.getElementById("btnCircle3Points"),
         entMdf: document.getElementById("entMdf"),
         entComprimentoDente: document.getElementById("entComprimentoDente"),
         btnAdd: document.getElementById("btnAdd"),
@@ -1113,6 +1119,116 @@ Continue clicando na aresta:
         );
       }
 
+      function calcularCirculoPorTresPontos(p1, p2, p3) {
+        const x1 = Number(p1[0]);
+        const y1 = Number(p1[1]);
+        const x2 = Number(p2[0]);
+        const y2 = Number(p2[1]);
+        const x3 = Number(p3[0]);
+        const y3 = Number(p3[1]);
+
+        const d = 2 * (
+          x1 * (y2 - y3) +
+          x2 * (y3 - y1) +
+          x3 * (y1 - y2)
+        );
+
+        if (Math.abs(d) < 1e-9) {
+          return null;
+        }
+
+        const ux = (
+          (x1 * x1 + y1 * y1) * (y2 - y3) +
+          (x2 * x2 + y2 * y2) * (y3 - y1) +
+          (x3 * x3 + y3 * y3) * (y1 - y2)
+        ) / d;
+
+        const uy = (
+          (x1 * x1 + y1 * y1) * (x3 - x2) +
+          (x2 * x2 + y2 * y2) * (x1 - x3) +
+          (x3 * x3 + y3 * y3) * (x2 - x1)
+        ) / d;
+
+        const raio = Math.hypot(x1 - ux, y1 - uy);
+
+        return {
+          cx: ux,
+          cy: uy,
+          r: raio
+        };
+      }
+
+
+      function desenharCirculoPorTresPontos() {
+        const pts = state.dados[state.camadaAtual].pontos || [];
+        const sel = state.selecaoLista;
+
+        if (sel.inicio === null || sel.fim === null) {
+          setStatus("Selecione três pontos na lista para desenhar o círculo.");
+          return;
+        }
+
+        const inicio = Math.min(sel.inicio, sel.fim);
+        const fim = Math.max(sel.inicio, sel.fim);
+
+        const selecionados = pts.slice(inicio, fim + 1);
+        const pontosSelecionados = selecionados.filter(p => Array.isArray(p));
+
+        if (pontosSelecionados.length !== 3) {
+          setStatus(`Selecione exatamente 3 pontos numéricos. Selecionados: ${pontosSelecionados.length}.`);
+          return;
+        }
+
+        const circulo = calcularCirculoPorTresPontos(
+          pontosSelecionados[0],
+          pontosSelecionados[1],
+          pontosSelecionados[2]
+        );
+
+        if (!circulo) {
+          setStatus("Não foi possível desenhar o círculo: os três pontos estão alinhados ou quase alinhados.");
+          return;
+        }
+
+        const segmentos = 96;
+        const novosPontos = [];
+
+        for (let i = 0; i <= segmentos; i++) {
+          const ang = (2 * Math.PI * i) / segmentos;
+
+          const x = circulo.cx + circulo.r * Math.cos(ang);
+          const y = circulo.cy + circulo.r * Math.sin(ang);
+
+          novosPontos.push([
+            round2(x),
+            round2(y)
+          ]);
+        }
+
+        // Se já existe uma figura em andamento, separa o círculo com QUEBRA.
+        if (pts.length > 0 && pts[pts.length - 1] !== "QUEBRA") {
+          pts.push("QUEBRA");
+        }
+
+        const novoInicio = pts.length;
+
+        novosPontos.forEach(p => pts.push(p));
+
+        const novoFim = pts.length - 1;
+
+        state.selecaoLista.inicio = novoInicio;
+        state.selecaoLista.fim = novoFim;
+        state.selecaoLista.ultimo = novoInicio;
+
+        updatePointsList();
+        render();
+        rolarListaParaFinal();
+
+        setStatus(
+          `Círculo criado na camada ${state.camadaAtual}. Centro: (${round2(circulo.cx)}, ${round2(circulo.cy)}), raio: ${round2(circulo.r)} mm.`
+        );
+      }
+      
       function render() {
         updateScale();
         clearSVG();
@@ -1599,10 +1715,10 @@ Continue clicando na aresta:
 
 
       function initEvents() {
-        el.btnAdd.addEventListener("click", adicionarPonto);
         el.btnUndo.addEventListener("click", removerUltimo);
         el.btnBreak.addEventListener("click", novaFigura);
         el.btnCopySelectionRight.addEventListener("click", copiarSelecaoParaDireita);
+        el.btnCircle3Points.addEventListener("click", desenharCirculoPorTresPontos);
         el.btnTeeth.addEventListener("click", toggleModoDentes);
 
         el.btnSaveProject.addEventListener("click", saveProject);
