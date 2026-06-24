@@ -685,6 +685,48 @@ Continue clicando na aresta:
         return !!state.dados.arestas_ocultas[edgeKeyComCamada(layer, p1, p2)];
       }
 
+      function mesmoPonto(p1, p2) {
+        return (
+          Array.isArray(p1) &&
+          Array.isArray(p2) &&
+          Number(p1[0]) === Number(p2[0]) &&
+          Number(p1[1]) === Number(p2[1])
+        );
+      }
+
+      function removerCirculosRelacionadosAoPontos(layer, pontosRemovidos) {
+        const camada = state.dados[layer];
+        if (!camada || !Array.isArray(camada.circulos) || camada.circulos.length === 0) {
+          return 0;
+        }
+
+        let removidos = 0;
+        const restantes = [];
+
+        for (const c of camada.circulos) {
+          const definidores = Array.isArray(c.definidores) ? c.definidores : [];
+
+          const relacionado = definidores.some(pd =>
+            pontosRemovidos.some(pr => mesmoPonto(pd, pr))
+          );
+
+          if (relacionado) {
+            removidos++;
+
+            if (Array.isArray(c.arestasOcultas) && state.dados.arestas_ocultas) {
+              c.arestasOcultas.forEach(chave => {
+                delete state.dados.arestas_ocultas[chave];
+              });
+            }
+          } else {
+            restantes.push(c);
+          }
+        }
+
+        camada.circulos = restantes;
+        return removidos;
+      }
+
 
       function getToothInfo(p1, p2) {
         const chave = edgeKey(p1, p2);
@@ -1038,20 +1080,27 @@ Continue clicando na aresta:
           return;
         }
 
-        // Se estiver editando a camada corte, remove dentes ligados ao ponto antigo,
-        // pois as chaves das arestas usam as coordenadas antigas.
         if (state.camadaAtual === "corte") {
           removerDentesRelacionadosAoPonto(pontoAtual);
         }
+
+        const qtdCirculosRemovidos = removerCirculosRelacionadosAoPontos(
+          state.camadaAtual,
+          [pontoAtual]
+        );
 
         pts[index] = [round2(novoX), round2(novoY)];
 
         updatePointsList();
         render();
 
-        setStatus(
-          `Ponto ${letterLabel(index)} alterado de (${xAtual}, ${yAtual}) para (${round2(novoX)}, ${round2(novoY)}).`
-        );
+        let msg = `Ponto ${letterLabel(index)} alterado de (${xAtual}, ${yAtual}) para (${round2(novoX)}, ${round2(novoY)}).`;
+
+        if (qtdCirculosRemovidos > 0) {
+          msg += ` ${qtdCirculosRemovidos} círculo(s) associado(s) removido(s).`;
+        }
+
+        setStatus(msg);
       }
 
       function removerDentesRelacionadosAoPonto(ponto) {
@@ -1218,11 +1267,11 @@ Continue clicando na aresta:
           return;
         }
 
-        const circulo = calcularCirculoPorTresPontos(
-          pontosSelecionados[0],
-          pontosSelecionados[1],
-          pontosSelecionados[2]
-        );
+        const p1 = [Number(pontosSelecionados[0][0]), Number(pontosSelecionados[0][1])];
+        const p2 = [Number(pontosSelecionados[1][0]), Number(pontosSelecionados[1][1])];
+        const p3 = [Number(pontosSelecionados[2][0]), Number(pontosSelecionados[2][1])];
+
+        const circulo = calcularCirculoPorTresPontos(p1, p2, p3);
 
         if (!circulo) {
           setStatus("Não foi possível desenhar o círculo: os três pontos estão alinhados ou quase alinhados.");
@@ -1233,16 +1282,19 @@ Continue clicando na aresta:
           state.dados[state.camadaAtual].circulos = [];
         }
 
+        const chaveAresta1 = edgeKeyComCamada(state.camadaAtual, p1, p2);
+        const chaveAresta2 = edgeKeyComCamada(state.camadaAtual, p2, p3);
+
         state.dados[state.camadaAtual].circulos.push({
           cx: round2(circulo.cx),
           cy: round2(circulo.cy),
-          r: round2(circulo.r)
+          r: round2(circulo.r),
+          definidores: [p1, p2, p3],
+          arestasOcultas: [chaveAresta1, chaveAresta2]
         });
 
-        // Oculta as duas arestas entre os 3 pontos selecionados
-        // Mantém os pontos, remove apenas as linhas entre eles.
-        ocultarAresta(state.camadaAtual, pontosSelecionados[0], pontosSelecionados[1]);
-        ocultarAresta(state.camadaAtual, pontosSelecionados[1], pontosSelecionados[2]);
+        ocultarAresta(state.camadaAtual, p1, p2);
+        ocultarAresta(state.camadaAtual, p2, p3);
 
         updatePointsList();
         render();
@@ -1251,7 +1303,7 @@ Continue clicando na aresta:
           `Círculo criado na camada ${state.camadaAtual}. Centro: (${round2(circulo.cx)}, ${round2(circulo.cy)}), raio: ${round2(circulo.r)} mm.`
         );
       }
-      
+
       function render() {
         updateScale();
         clearSVG();
@@ -1310,7 +1362,6 @@ Continue clicando na aresta:
         setStatus(`Ponto adicionado na camada ${state.camadaAtual}: (${x}, ${y})`);
       }
 
-
       function removerUltimo() {
         const pts = state.dados[state.camadaAtual].pontos;
         const sel = state.selecaoLista;
@@ -1333,20 +1384,22 @@ Continue clicando na aresta:
           return;
         }
 
-        const removidos = pts.slice(inicio, fim + 1);
+        const removidosDaLista = pts.slice(inicio, fim + 1);
+        const pontosRemovidos = removidosDaLista.filter(item => Array.isArray(item));
 
-        // Se estiver removendo da camada corte, apaga dentes ligados aos pontos removidos.
         if (state.camadaAtual === "corte") {
-          removidos.forEach(item => {
-            if (Array.isArray(item)) {
-              removerDentesRelacionadosAoPonto(item);
-            }
+          pontosRemovidos.forEach(ponto => {
+            removerDentesRelacionadosAoPonto(ponto);
           });
         }
 
+        const qtdCirculosRemovidos = removerCirculosRelacionadosAoPontos(
+          state.camadaAtual,
+          pontosRemovidos
+        );
+
         pts.splice(inicio, fim - inicio + 1);
 
-        // Limpa seleção após remover
         state.selecaoLista.inicio = null;
         state.selecaoLista.fim = null;
         state.selecaoLista.ultimo = null;
@@ -1354,10 +1407,18 @@ Continue clicando na aresta:
         updatePointsList();
         render();
 
-        if (removidos.length === 1) {
-          setStatus(`Item removido: ${JSON.stringify(removidos[0])}`);
+        if (removidosDaLista.length === 1) {
+          let msg = `Item removido: ${JSON.stringify(removidosDaLista[0])}`;
+          if (qtdCirculosRemovidos > 0) {
+            msg += ` | ${qtdCirculosRemovidos} círculo(s) associado(s) removido(s).`;
+          }
+          setStatus(msg);
         } else {
-          setStatus(`${removidos.length} itens removidos da camada ${state.camadaAtual}.`);
+          let msg = `${removidosDaLista.length} itens removidos da camada ${state.camadaAtual}.`;
+          if (qtdCirculosRemovidos > 0) {
+            msg += ` ${qtdCirculosRemovidos} círculo(s) associado(s) removido(s).`;
+          }
+          setStatus(msg);
         }
       }
 
@@ -1761,8 +1822,8 @@ Continue clicando na aresta:
         cycleTeethOnEdge(aresta, pt.x, pt.y);
       }
 
-
       function initEvents() {
+        el.btnAdd.addEventListener("click", adicionarPonto);
         el.btnUndo.addEventListener("click", removerUltimo);
         el.btnBreak.addEventListener("click", novaFigura);
         el.btnCopySelectionRight.addEventListener("click", copiarSelecaoParaDireita);
@@ -1804,7 +1865,6 @@ Continue clicando na aresta:
           }
 
           if (e.key === "Enter" && document.activeElement !== el.fileInput) {
-            // evitar submit implícito em inputs
             e.preventDefault();
             adicionarPonto();
             return;
@@ -1822,7 +1882,6 @@ Continue clicando na aresta:
           }
         });
       }
-
       function seedExample() {
         // opcional: deixe vazio por padrão.
         // state.dados.corte.pontos = [[20,20],[120,20],[120,80],[20,80],[20,20],"QUEBRA"];
