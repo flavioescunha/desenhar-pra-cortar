@@ -694,39 +694,60 @@ Continue clicando na aresta:
         );
       }
 
-      function removerCirculosRelacionadosAoPontos(layer, pontosRemovidos) {
-        const camada = state.dados[layer];
-        if (!camada || !Array.isArray(camada.circulos) || camada.circulos.length === 0) {
-          return 0;
-        }
+      function pontoPertenceAoCirculo(ponto, circulo, tolerancia = 0.15) {
+  if (!Array.isArray(ponto)) return false;
+  if (!circulo) return false;
 
-        let removidos = 0;
-        const restantes = [];
+  const x = Number(ponto[0]);
+  const y = Number(ponto[1]);
+  const cx = Number(circulo.cx);
+  const cy = Number(circulo.cy);
+  const r = Number(circulo.r);
 
-        for (const c of camada.circulos) {
-          const definidores = Array.isArray(c.definidores) ? c.definidores : [];
+  const dist = Math.hypot(x - cx, y - cy);
+  return Math.abs(dist - r) <= tolerancia;
+}
 
-          const relacionado = definidores.some(pd =>
-            pontosRemovidos.some(pr => mesmoPonto(pd, pr))
-          );
+function removerCirculosRelacionadosAoPontos(layer, pontosRemovidos) {
+  const camada = state.dados[layer];
+  if (!camada || !Array.isArray(camada.circulos) || camada.circulos.length === 0) {
+    return 0;
+  }
 
-          if (relacionado) {
-            removidos++;
+  let removidos = 0;
+  const restantes = [];
 
-            if (Array.isArray(c.arestasOcultas) && state.dados.arestas_ocultas) {
-              c.arestasOcultas.forEach(chave => {
-                delete state.dados.arestas_ocultas[chave];
-              });
-            }
-          } else {
-            restantes.push(c);
-          }
-        }
+  for (const c of camada.circulos) {
+    let relacionado = false;
 
-        camada.circulos = restantes;
-        return removidos;
+    // Caso normal: círculos novos, com definidores salvos
+    if (Array.isArray(c.definidores) && c.definidores.length > 0) {
+      relacionado = c.definidores.some(pd =>
+        pontosRemovidos.some(pr => mesmoPonto(pd, pr))
+      );
+    }
+    // Compatibilidade com círculos antigos, sem definidores:
+    // remove se algum ponto removido estiver exatamente sobre a circunferência.
+    else {
+      relacionado = pontosRemovidos.some(pr => pontoPertenceAoCirculo(pr, c));
+    }
+
+    if (relacionado) {
+      removidos++;
+
+      if (Array.isArray(c.arestasOcultas) && state.dados.arestas_ocultas) {
+        c.arestasOcultas.forEach(chave => {
+          delete state.dados.arestas_ocultas[chave];
+        });
       }
+    } else {
+      restantes.push(c);
+    }
+  }
 
+  camada.circulos = restantes;
+  return removidos;
+}
 
       function getToothInfo(p1, p2) {
         const chave = edgeKey(p1, p2);
@@ -1616,6 +1637,19 @@ Continue clicando na aresta:
 
             if (!dados.corte.circulos) dados.corte.circulos = [];
             if (!dados.contorno.circulos) dados.contorno.circulos = [];
+
+            dados.corte.circulos = dados.corte.circulos.map(c => ({
+              ...c,
+              definidores: Array.isArray(c.definidores) ? c.definidores : [],
+              arestasOcultas: Array.isArray(c.arestasOcultas) ? c.arestasOcultas : []
+            }));
+
+            dados.contorno.circulos = dados.contorno.circulos.map(c => ({
+              ...c,
+              definidores: Array.isArray(c.definidores) ? c.definidores : [],
+              arestasOcultas: Array.isArray(c.arestasOcultas) ? c.arestasOcultas : []
+            }));
+
 
             state.dados = dados;
             syncUIFromState();
